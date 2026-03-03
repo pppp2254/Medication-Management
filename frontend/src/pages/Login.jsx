@@ -12,14 +12,15 @@ export default function Login() {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post( `${API}login`, form);
+            const res = await axios.post(`${API}login`, form);
 
-            localStorage.setItem("token", res.data.access_token || "loggedin");
-            localStorage.setItem('role', res.data.role);
+            localStorage.setItem("token", res.data.access_token);
+            localStorage.setItem("role", res.data.role);
+            localStorage.setItem("permissions", JSON.stringify(res.data.permissions));
+
             navigate("/");
-        }
-        catch {
-            alert("Login Fail")
+        } catch (err) {
+            alert("Login Fail");
         }
     };
 

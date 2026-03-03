@@ -8,6 +8,7 @@ from enum import Enum
 class Role(str, Enum):
     ADMIN = "Admin"
     DOCTOR = "Doctor"
+    TESTROLE = "Testing role"
 
 class StaffAuth(Document):
     staff_id: int

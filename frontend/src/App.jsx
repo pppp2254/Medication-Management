@@ -13,6 +13,7 @@ import PatientPage from './pages/Patiens';
 import PatientDetailPage from './pages/PatientDetailPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminPermissionPage from './pages/Permission';
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -27,7 +28,9 @@ const navLinks = [
 function Navbar() {
   const location = useLocation();
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("token"),
+    localStorage.removeItem("role"),
+    localStorage.removeItem("permissions");
     window.location.href = "/auth/login";
   }
   return (
@@ -109,8 +112,17 @@ function App() {
                   <Route path="/inventory/add-medinfo" element={<AddMedInfo />} />
                   <Route path="/inventory/view" element={<ViewMedications />} />
                   <Route path="/staff" element={<StaffPage />} />
-                </Routes>
 
+                  {/* 🔐 ADMIN ONLY */}
+                  <Route
+                    path="/admin/permissions"
+                    element={
+                      <ProtectedRoute requiredRole="Admin">
+                        <AdminPermissionPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
               </>
             </ProtectedRoute>
           }
