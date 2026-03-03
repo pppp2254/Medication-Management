@@ -8,3 +8,11 @@ backend เป็น python FastAPI
 เพิ่ม Login Logout ให้ละน่าจะใช้ได้ไม่ติดไร
 Set ให้เข้าหน้าหลักไม่ได้ถ้าไม่ได้ Login และถ้า Login แล้วจะเข้าหน้า Register กับ Login ไม่ได้ละ
 -Nol
+
+#############################################################################
+เพิ่มระบบ Admin และ Permission เรียบร้อย(ปวดหัวมากๆ ทำทั้งวัน)
+มีการเปลี่ยนโครงสร้าง Schema ของ staff_auth จาก str -> list[str] แนะนำให้ docker-compose down -v เพื่อล้างข้อมูลที้งให้หมดก่อน
+สามารถสร้าง Admin ได้ด้วยการ run "python create_admin.py" ถ้าในระบบมี Admin อยู่แล้วตัว "create_admin" จะปิดโดยทันทีพร้อมแจ้งว่า "✅ Admin already exists."
+
+ถ้า log in ด้วย account admin จะสามารถเข้า tab "Admin Panel" ได้ผู้ใช้ธรรมดาเข้าไม่ได้ สามารถไปเพิ่ม Permission ให้ Staff ต่างๆได้
+สำหรับการเพิ่ม Permission อย่างเช่นจะเพื่ม หน้าที่"Pharmacist" สามารถเข้าไปที่ staff_auth แล้วหา class Role แล้วเพิ่มลงไปได้เลย ถ้าไม่มีอะไรผิดพลาดน่าจะเพิ่มให้ใน panel อัตโนมัติ
