@@ -49,6 +49,18 @@ function Navbar() {
   );
 }
 
+function PublicNavbar() {
+  return (
+    <nav style={styles.nav}>
+      <b style={styles.logo}>🏥 Clinic App</b>
+      <div style={styles.links}>
+        <Link to="/auth/login" style={styles.link}>Login</Link>
+        <Link to="/auth/register" style={styles.link}>Register</Link>
+      </div>
+    </nav>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -60,7 +72,10 @@ function App() {
           path="/auth/login"
           element={
             <PublicRoute>
-              <Login />
+              <>
+                <PublicNavbar />
+                <Login />
+              </>
             </PublicRoute>
           }
         />
@@ -69,7 +84,10 @@ function App() {
           path="/auth/register"
           element={
             <PublicRoute>
-              <Register />
+              <>
+                <PublicNavbar />
+                <Register />
+              </>
             </PublicRoute>
           }
         />
