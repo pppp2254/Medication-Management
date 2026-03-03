@@ -1,12 +1,19 @@
 import asyncio
+import os
 import getpass
 
+from sqlalchemy import select
+
 from routers.auth_router import pwd_context
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, connect_mongodb, disconnect_mongodb, AsyncSessionLocal
 from models.med_info_mongo_model import MedInfo
 from models.staff_sql_db import StaffInfo
 from models.staff_mongo_db import StaffAuth, EventLog, Role
 from models.patient_mongo_db import Patient_hist 
+from routers import inventory_router, patients_router, auth_router
 
 MONGO_URL = "mongodb://admin:adminpassword@localhost:27017"
 MONGO_DB_NAME = "clinic_db_mongo"

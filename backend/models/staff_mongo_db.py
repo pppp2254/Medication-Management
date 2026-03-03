@@ -6,8 +6,8 @@ from pydantic import Field
 from enum import Enum
 
 class Role(str, Enum):
-    ADMIN = "admin"
-    DOCTOR = "doctor"
+    ADMIN = "Admin"
+    DOCTOR = "Doctor"
 
 class StaffAuth(Document):
     staff_id: int

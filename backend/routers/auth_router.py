@@ -39,10 +39,6 @@ async def register(payload: RegisterSchema, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(StaffInfo).where(StaffInfo.username == payload.username))
     exists = result.scalar_one_or_none()
 
-    print("RAW PASSWORD:", payload.password)
-    print("LENGTH:", len(payload.password))
-    print("BYTES:", len(payload.password.encode("utf-8")))
-
     if exists:
         raise HTTPException(status_code=400, detail="USERNAME_TAKEN")
     
