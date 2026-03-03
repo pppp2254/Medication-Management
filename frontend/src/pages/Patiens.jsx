@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PatientForm from '../components/Patient/PatientForm';
 import PatientTable from '../components/Patient/PatientTable';
 import PatientHistoryForm from '../components/Patient/PatientHistForm';
+import PatientSearch from '../components/Patient/PatientSearch';
 
 export default function PatientPage() {
   const [patients, setPatients] = useState([]);
@@ -13,15 +14,12 @@ export default function PatientPage() {
 
   const fetchPatients = async () => {
     try {
-      // 1. ดึง Token จากที่เก็บไว้ตอน Login (แก้ชื่อ key ให้ตรงกับที่คุณเซฟไว้ เช่น 'access_token' หรือ 'token')
       const token = localStorage.getItem('token'); 
-
-      // 2. แนบ Token ไปกับ Header
       const response = await fetch('http://localhost:8000/api/v1/patients/', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // ส่ง Token ไปยืนยันตัวตน
+          'Authorization': `Bearer ${token}` 
         }
       });
 
@@ -45,6 +43,12 @@ export default function PatientPage() {
       </div>
 
       <PatientForm onAddSuccess={fetchPatients} />
+
+      {/* 2️⃣ วางช่องค้นหาไว้ตรงนี้ (หรือสลับที่กับฟอร์มเพิ่มคนไข้ก็ได้ครับ) */}
+      <PatientSearch 
+        onSearchResults={(data) => setPatients(data)} // เมื่อค้นหาเจอ ให้อัปเดตตาราง
+        onClearSearch={fetchPatients} // เมื่อกดล้างการค้นหา ให้ไปดึงข้อมูลทั้งหมดมาใหม่
+      />
 
       {selectedPatient && (
         <PatientHistoryForm 

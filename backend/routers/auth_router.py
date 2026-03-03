@@ -200,21 +200,20 @@ async def get_roles():
 from models.patient_sql_db import Patient
 
 class PatientLoginSchema(BaseModel):
-    name: str
+    citizen_id: str
     password: str
 
 @router.post("/patient/login")
 async def patient_login(payload: PatientLoginSchema, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Patient).where(Patient.name == payload.name))
+    result = await db.execute(select(Patient).where(Patient.citizen_id == payload.citizen_id))
     patient = result.scalar_one_or_none()
 
     if not patient or not pwd_context.verify(payload.password, patient.password):
-        raise HTTPException(status_code=400, detail="Patient password is incorrect")
+        raise HTTPException(status_code=400, detail="รหัสบัตรประชาชน หรือ รหัสผ่านไม่ถูกต้อง")
     
-    # ---- แก้ไขตรงนี้: สร้างและส่ง JWT Token ของคนไข้ ----
     token = create_access_token(
         data={
-            "sub": str(patient.p_id),  # use sub!
+            "sub": str(patient.p_id),
             "role": "patient",
             "name": str(patient.name)
         }

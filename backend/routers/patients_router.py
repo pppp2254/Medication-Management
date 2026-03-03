@@ -1,15 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from typing import Optional, List
 from datetime import date
 from passlib.context import CryptContext
+import json
+
+
+from models.staff_mongo_db import StaffAuth, Role
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 
 from database import get_db
 from models.patient_sql_db import Patient, Treatment
 from models.med_sql_models import Medication, Inventory
 from models.patient_mongo_db import Patient_hist
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+SECRET_KEY = "your-very-secret-key-change-this"
+ALGORITHM = "HS256"
 
 # ==========================================
 # Helpers
@@ -26,13 +37,13 @@ def parse_csv(value: Optional[str]) -> Optional[List[str]]:
 
 class PatientCreate(BaseModel):
     name: str
-    citizen_id: str
-    age: int
+    citizen_id: str = Field(..., pattern=r"^\d+$", min_length=13, max_length=13, description="wrong citizen ID")
+    age: int = Field(..., gt=0, description="require age more than 0")
     gender: str
 
 class PatientUpdate(BaseModel):
     name: Optional[str] = None
-    age: Optional[int] = None
+    age: Optional[int] = Field(None, gt=0, description="require age more than 0")
     gender: Optional[str] = None
 
 class PatientResponse(BaseModel):
@@ -46,7 +57,7 @@ class PatientResponse(BaseModel):
 
 class TreatmentCreate(BaseModel):
     med_id: int
-    amount: int
+    amount: int = Field(..., gt=0, description="cannot dispense 0 amount")
     date: date
 
 class TreatmentResponse(BaseModel):
@@ -83,26 +94,50 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # Auth dependencies
 # ==========================================
 
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user_token(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, "your-very-secret-key-change-this", algorithms=["HS256"])
-        user_id: int = payload.get("id")
-        role: str = payload.get("role")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        role = payload.get("role")
         if user_id is None or role is None:
             raise credentials_exception
-        return {"id": user_id, "role": role}
+        return {"id": int(user_id), "role": str(role).lower()}
     except JWTError:
         raise credentials_exception
+
+async def require_doctor(current_user: dict = Depends(get_current_user_token)):
+    if current_user["role"] == "patient":
+        raise HTTPException(status_code=403, detail="Patients cannot perform this action")
+
+    staff_auth = await StaffAuth.find_one(StaffAuth.staff_id == current_user["id"])
+    if not staff_auth or Role.DOCTOR not in staff_auth.permission:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Doctor permission required"
+        )
+    return current_user
+
+
+async def require_pharmacist(current_user: dict = Depends(get_current_user_token)):
+    """ Middleware เช็คว่ามีสิทธิ์ PHARMACIST ใน MongoDB หรือไม่ """
+    if current_user["role"] == "patient":
+        raise HTTPException(status_code=403, detail="Patients cannot perform this action")
+
+    # ไปค้นหาสิทธิ์ของพนักงานคนนี้จาก MongoDB
+    staff_auth = await StaffAuth.find_one(StaffAuth.staff_id == current_user["id"])
+    
+    # ถ้าไม่มีสิทธิ์ PHARMACIST ให้เตะออก
+    if not staff_auth or Role.PHARMACIST not in staff_auth.permission:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Pharmacist permission required"
+        )
+    return current_user
 
 # ------------------------------------------
 # Patient CRUD (PostgreSQL)
@@ -111,22 +146,105 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 @router.get("/", response_model=list[PatientResponse])
 async def get_all_patients(
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_token) # ใช้ Token Payload โดยตรง
 ):
-    role = current_user["role"].lower()
+    role = current_user["role"]
     u_id = current_user["id"]
 
-    if role == "pharmacist":
-        result = await db.execute(select(Patient))
-    elif role == "doctor":
-        result = await db.execute(select(Patient).where(Patient.doctor_id == u_id))
-    elif role == "patient":
+    if role == "patient":
         result = await db.execute(select(Patient).where(Patient.p_id == u_id))
+        return result.scalars().all()
+
+    # 2. ถ้าเป็นพนักงาน ให้ไปค้นหาสิทธิ์ (Permissions) จาก MongoDB
+    staff_auth = await StaffAuth.find_one(StaffAuth.staff_id == u_id)
+    permissions = staff_auth.permission if staff_auth else []
+
+    if Role.PHARMACIST in permissions or Role.ADMIN in permissions:
+        # เภสัชกร หรือ แอดมิน สามารถดูข้อมูลคนไข้ได้ทั้งหมด
+        result = await db.execute(select(Patient))
+    elif Role.DOCTOR in permissions:
+        # หมอ ดูได้เฉพาะคนไข้ในการดูแลของตัวเอง
+        result = await db.execute(select(Patient).where(Patient.doctor_id == u_id))
     else:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     return result.scalars().all()
 
+@router.get("/search/advanced", response_model=list[PatientResponse])
+async def search_patients(
+    diagnosis: Optional[str] = Query(None, description="diagnosis"),
+    allergy: Optional[str] = Query(None, description="allergy"),
+    med_id: Optional[int] = Query(None, description="Med_id"),
+    match_type: str = Query("and", description="select 'and' or 'or'"), 
+    raw_mongo_query: Optional[str] = Query(None, description="Raw JSON Query MongoDB"),
+    current_user: dict = Depends(get_current_user_token),
+    db: AsyncSession = Depends(get_db)
+):
+    if not diagnosis and not allergy and not med_id:
+        raise HTTPException(status_code=400, detail="please input quey")
+
+    mongo_p_ids = None
+    sql_p_ids = None
+    valid_p_ids = None
+
+    if raw_mongo_query:
+        try:
+            query_dict = json.loads(raw_mongo_query)
+            hist_results = await Patient_hist.find(query_dict).to_list()
+            mongo_p_ids = {hist.p_id for hist in hist_results}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"incorrect JSON Query: {str(e)}")
+
+    # 2️⃣ โหมดค้นหาปกติ - ค้นหาใน MongoDB
+    elif diagnosis or allergy:
+        conditions = []
+        if diagnosis:
+            conditions.append({"diagnosis": {"$regex": diagnosis, "$options": "i"}})
+        if allergy:
+            conditions.append({"allergies": {"$regex": allergy, "$options": "i"}})
+        
+        mongo_query = {}
+        if conditions:
+            # ใช้ AND หรือ OR ตามที่ User เลือกมา
+            if match_type == "or":
+                mongo_query = {"$or": conditions}
+            else:
+                mongo_query = {"$and": conditions}
+                
+        hist_results = await Patient_hist.find(mongo_query).to_list()
+        mongo_p_ids = {hist.p_id for hist in hist_results}
+
+    # 3️⃣ ค้นหาใน PostgreSQL (ประวัติการได้ยา)
+    if med_id is not None:
+        stmt = select(Treatment.p_id).where(Treatment.med_id == med_id)
+        result = await db.execute(stmt)
+        sql_p_ids = {row for row in result.scalars().all()}
+
+    # 4️⃣ รวมผลลัพธ์ (Intersection = AND, Union = OR)
+    if mongo_p_ids is not None and sql_p_ids is not None:
+        if match_type == "or":
+            valid_p_ids = mongo_p_ids.union(sql_p_ids) # รวมกัน (เอาทั้งหมดที่เจอ)
+        else:
+            valid_p_ids = mongo_p_ids.intersection(sql_p_ids) # หาจุดตัด (ต้องเจอทั้งสองฝั่ง)
+    elif mongo_p_ids is not None:
+        valid_p_ids = mongo_p_ids
+    elif sql_p_ids is not None:
+        valid_p_ids = sql_p_ids
+
+    # ถ้าไม่เจอเลย
+    if not valid_p_ids:
+        return []
+
+    # 5️⃣ ดึงข้อมูลคนไข้ตัวเต็ม
+    stmt = select(Patient).where(Patient.p_id.in_(valid_p_ids))
+    
+    role = current_user["role"]
+    u_id = current_user["id"]
+    if role == "doctor": 
+         stmt = stmt.where(Patient.doctor_id == u_id)
+         
+    final_patients = await db.execute(stmt)
+    return final_patients.scalars().all()
 
 @router.get("/{p_id}", response_model=PatientResponse)
 async def get_patient(p_id: int, db: AsyncSession = Depends(get_db)):
@@ -137,11 +255,12 @@ async def get_patient(p_id: int, db: AsyncSession = Depends(get_db)):
     return patient
 
 
+# ใช้ dependencies=[Depends(require_doctor)] เพื่อบล็อกถ้าไม่ใช่หมอ
 @router.post("/", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 async def create_patient(
     body: PatientCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_doctor) 
 ):
     hashed_pw = pwd_context.hash(body.citizen_id)
     doctor_id = current_user["id"]
@@ -168,10 +287,8 @@ async def update_patient(
     p_id: int,
     body: PatientUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_doctor) # บังคับสิทธิ์หมอ
 ):
-    if current_user["role"] != "doctor":
-        raise HTTPException(status_code=403, detail="Only doctor can update patient")
     result = await db.execute(select(Patient).where(Patient.p_id == p_id))
     patient = result.scalar_one_or_none()
     if not patient:
@@ -187,7 +304,7 @@ async def update_patient(
 
 
 @router.delete("/{p_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_patient(p_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_patient(p_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_doctor)):
     result = await db.execute(select(Patient).where(Patient.p_id == p_id))
     patient = result.scalar_one_or_none()
     if not patient:
@@ -263,7 +380,7 @@ async def add_treatment(p_id: int, body: TreatmentCreate, db: AsyncSession = Dep
 # ------------------------------------------
 
 @router.get("/{p_id}/history", response_model=PatientHistResponse)
-async def get_patient_history(p_id: int):
+async def get_patient_history(p_id: int, current_user: dict = Depends(get_current_user_token)):
     hist = await Patient_hist.find_one(Patient_hist.p_id == p_id)
     if not hist:
         raise HTTPException(status_code=404, detail="Patient history not found")
@@ -271,7 +388,7 @@ async def get_patient_history(p_id: int):
 
 
 @router.post("/{p_id}/history", response_model=PatientHistResponse, status_code=status.HTTP_201_CREATED)
-async def create_patient_history(p_id: int, body: PatientHistCreate):
+async def create_patient_history(p_id: int, body: PatientHistCreate,current_user: dict = Depends(require_doctor)):
     existing = await Patient_hist.find_one(Patient_hist.p_id == p_id)
     if existing:
         raise HTTPException(status_code=409, detail="History already exists, use PUT to update")
@@ -288,7 +405,7 @@ async def create_patient_history(p_id: int, body: PatientHistCreate):
 
 
 @router.put("/{p_id}/history", response_model=PatientHistResponse)
-async def update_patient_history(p_id: int, body: PatientHistCreate):
+async def update_patient_history(p_id: int, body: PatientHistCreate,current_user: dict = Depends(require_doctor)):
     hist = await Patient_hist.find_one(Patient_hist.p_id == p_id)
     if not hist:
         raise HTTPException(status_code=404, detail="Patient history not found")
