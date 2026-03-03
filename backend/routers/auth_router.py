@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from database import get_db
 from models.staff_sql_db import StaffInfo
+from models.staff_mongo_db import StaffAuth
 from passlib.context import CryptContext
 from pydantic import BaseModel, constr
 from datetime import datetime, timedelta
@@ -50,9 +51,17 @@ async def register(payload: RegisterSchema, db: AsyncSession = Depends(get_db)):
     user = StaffInfo(username=payload.username, password=hashed_pw, name=payload.name, role=payload.role)
     try:
         db.add(user)
+        await db.flush()
+        await StaffAuth(
+            staff_id=user.staff_id,
+            permission=[]
+        ).insert()
+
+        await db.commit()
+
     except:
+        await db.rollback()
         raise HTTPException(status_code=500, detail="DB_ERROR")
-    await db.commit()
 
     return {"message": "User Created successfully."}
 

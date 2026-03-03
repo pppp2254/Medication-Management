@@ -31,7 +31,6 @@ async def lifespan(app: FastAPI):
     
     # เชื่อมต่อ PostgreSQL ด้วย SQLAlchemy
     # Base.metadata.create_all(bind=engine)
-    print("✅ PostgreSQL Connected!")
 
     yield # ปล่อยให้ Server ทำงาน
     
