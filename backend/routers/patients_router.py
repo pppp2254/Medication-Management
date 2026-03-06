@@ -184,7 +184,7 @@ async def get_all_patients(
     u_id = current_user["id"]
 
     if role == "patient":
-        result = await db.execute(select(Patient).where(Patient.p_id == u_id))
+        result = await db.execute(select(Patient).where(Patient.p_id == u_id),Patient.is_deleted == False)
         return result.scalars().all()
 
     # 2. ถ้าเป็นพนักงาน ให้ไปค้นหาสิทธิ์ (Permissions) จาก MongoDB
@@ -193,10 +193,10 @@ async def get_all_patients(
 
     if Role.PHARMACIST in permissions or Role.ADMIN in permissions:
         # เภสัชกร หรือ แอดมิน สามารถดูข้อมูลคนไข้ได้ทั้งหมด
-        result = await db.execute(select(Patient))
+        result = await db.execute(select(Patient).where(Patient.is_deleted == False))
     elif Role.DOCTOR in permissions:
         # หมอ ดูได้เฉพาะคนไข้ในการดูแลของตัวเอง
-        result = await db.execute(select(Patient).where(Patient.doctor_id == u_id))
+        result = await db.execute(select(Patient).where(Patient.doctor_id == u_id,Patient.is_deleted == False))
     else:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
@@ -206,7 +206,7 @@ async def get_all_patients(
 async def search_patients(
     diagnosis: Optional[str] = Query(None, description="diagnosis"),
     allergy: Optional[str] = Query(None, description="allergy"),
-    med_id: Optional[int] = Query(None, description="Med_id"),
+    med_id: Optional[str] = Query(None, description="Med_id (comma-separated)"),
     match_type: str = Query("and", description="select 'and' or 'or'"), 
     raw_mongo_query: Optional[str] = Query(None, description="Raw JSON Query MongoDB"),
     current_user: dict = Depends(get_current_user_token),
@@ -231,9 +231,25 @@ async def search_patients(
     elif diagnosis or allergy:
         conditions = []
         if diagnosis:
-            conditions.append({"diagnosis": {"$regex": diagnosis, "$options": "i"}})
+            diagnosis_terms = [t.strip() for t in diagnosis.split(",") if t.strip()]
+            if len(diagnosis_terms) == 1:
+                conditions.append({"diagnosis": {"$regex": f"\\b{diagnosis_terms[0]}\\b", "$options": "i"}})
+            else:
+                term_conditions = [{"diagnosis": {"$regex": f"\\b{t}\\b", "$options": "i"}} for t in diagnosis_terms]
+                if match_type == "or":
+                    conditions.append({"$or": term_conditions})
+                else:
+                    conditions.extend(term_conditions)
         if allergy:
-            conditions.append({"allergies": {"$regex": allergy, "$options": "i"}})
+            allergy_terms = [t.strip() for t in allergy.split(",") if t.strip()]
+            if len(allergy_terms) == 1:
+                conditions.append({"allergies": {"$regex": f"\\b{allergy_terms[0]}\\b", "$options": "i"}})
+            else:
+                term_conditions = [{"allergies": {"$regex": f"\\b{t}\\b", "$options": "i"}} for t in allergy_terms]
+                if match_type == "or":
+                    conditions.append({"$or": term_conditions})
+                else:
+                    conditions.extend(term_conditions)
         
         mongo_query = {}
         if conditions:
@@ -248,9 +264,23 @@ async def search_patients(
 
     # 3️⃣ ค้นหาใน PostgreSQL (ประวัติการได้ยา)
     if med_id is not None:
-        stmt = select(Treatment.p_id).where(Treatment.med_id == med_id)
-        result = await db.execute(stmt)
-        sql_p_ids = {row for row in result.scalars().all()}
+        med_id_list = [int(m.strip()) for m in med_id.split(",") if m.strip().isdigit()]
+        if not med_id_list:
+            raise HTTPException(status_code=400, detail="med_id must be numeric")
+
+        if match_type == "or" or len(med_id_list) == 1:
+            # OR: เจอยาตัวใดตัวหนึ่งก็พอ → union p_id ทั้งหมด
+            stmt = select(Treatment.p_id).where(Treatment.med_id.in_(med_id_list))
+            result = await db.execute(stmt)
+            sql_p_ids = set(result.scalars().all())
+        else:
+            # AND: ต้องเคยได้รับยาครบทุกตัว → intersection p_id ของแต่ละ med_id
+            sets = []
+            for mid in med_id_list:
+                stmt = select(Treatment.p_id).where(Treatment.med_id == mid)
+                result = await db.execute(stmt)
+                sets.append(set(result.scalars().all()))
+            sql_p_ids = sets[0].intersection(*sets[1:])
 
     # 4️⃣ รวมผลลัพธ์ (Intersection = AND, Union = OR)
     if mongo_p_ids is not None and sql_p_ids is not None:
@@ -268,7 +298,7 @@ async def search_patients(
         return []
 
     # 5️⃣ ดึงข้อมูลคนไข้ตัวเต็ม
-    stmt = select(Patient).where(Patient.p_id.in_(valid_p_ids))
+    stmt = select(Patient).where(Patient.p_id.in_(valid_p_ids), Patient.is_deleted == False)
     
     role = current_user["role"]
     u_id = current_user["id"]
@@ -280,12 +310,11 @@ async def search_patients(
 
 @router.get("/{p_id}", response_model=PatientResponse)
 async def get_patient(p_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Patient).where(Patient.p_id == p_id))
+    result = await db.execute(select(Patient).where(Patient.p_id == p_id, Patient.is_deleted == False))
     patient = result.scalar_one_or_none()
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     return patient
-
 
 
 # ใช้ dependencies=[Depends(require_doctor)] เพื่อบล็อกถ้าไม่ใช่หมอ
@@ -295,23 +324,42 @@ async def create_patient(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_doctor) 
 ):
-    hashed_pw = pwd_context.hash(body.citizen_id)
-    doctor_id = current_user["id"]
-    patient = Patient(
-        name=body.name,
-        citizen_id=body.citizen_id,
-        password=hashed_pw,
-        age=body.age,
-        gender=body.gender,
-        doctor_id=doctor_id
-    )
-    db.add(patient)
+    # เช็คว่าเคยมี Citizen ID นี้ในระบบไหม
+    result = await db.execute(select(Patient).where(Patient.citizen_id == body.citizen_id))
+    existing_patient = result.scalar_one_or_none()
+
+    if existing_patient:
+        if not existing_patient.is_deleted:
+            raise HTTPException(status_code=400, detail="Patient with this Citizen ID already exists")
+        
+        existing_patient.is_deleted = False
+        existing_patient.name = body.name
+        existing_patient.age = body.age
+        existing_patient.gender = body.gender
+        existing_patient.doctor_id = current_user["id"]
+        existing_patient.password = pwd_context.hash(body.citizen_id)
+        
+        patient = existing_patient
+    else:
+        hashed_pw = pwd_context.hash(body.citizen_id)
+        doctor_id = current_user["id"]
+        patient = Patient(
+            name=body.name,
+            citizen_id=body.citizen_id,
+            password=hashed_pw,
+            age=body.age,
+            gender=body.gender,
+            doctor_id=doctor_id,
+            is_deleted=False
+        )
+        db.add(patient)
+
     try:
         await db.commit()
         await db.refresh(patient)
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=400, detail="Cannot create patient")
+        raise HTTPException(status_code=500, detail="Cannot create patient")
     return patient
 
 
@@ -340,11 +388,14 @@ async def update_patient(
 async def delete_patient(p_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(require_doctor)):
     result = await db.execute(select(Patient).where(Patient.p_id == p_id))
     patient = result.scalar_one_or_none()
-    if not patient:
+    
+    # ถ้าไม่เจอ หรือ ถูกลบไปแล้ว
+    if not patient or patient.is_deleted:
         raise HTTPException(status_code=404, detail="Patient not found")
-    await db.delete(patient)
+    
+    # ซ่อนข้อมูล (Soft Delete)
+    patient.is_deleted = True
     await db.commit()
-
 # ------------------------------------------
 # Treatment + Stock Deduction (PostgreSQL)
 # ------------------------------------------

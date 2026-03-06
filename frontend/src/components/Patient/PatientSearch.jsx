@@ -62,11 +62,28 @@ export default function PatientSearch({ onSearchResults, onClearSearch }) {
     }
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     setSearchParams({ diagnosis: '', allergy: '', med_id: '' });
-    setRawQuery('');
     setError(null);
-    onClearSearch(); 
+    setIsLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/patients/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        onSearchResults(data);
+      }
+    } catch (err) {
+      setError("cannot connect server");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -90,9 +107,9 @@ export default function PatientSearch({ onSearchResults, onClearSearch }) {
               <option value="or">OR</option>
             </select>
             
-            <input name="diagnosis" placeholder="diagnosis" value={searchParams.diagnosis} onChange={handleChange} style={inputStyle} />
-            <input name="allergy" placeholder="allergy" value={searchParams.allergy} onChange={handleChange} style={inputStyle} />
-            <input name="med_id" type="number" placeholder="med_id" value={searchParams.med_id} onChange={handleChange} style={inputStyle} />
+            <input name="diagnosis" placeholder="diagnosis (e.g. flu, fever)" value={searchParams.diagnosis} onChange={handleChange} style={inputStyle} />
+            <input name="allergy" placeholder="allergy (e.g. penicillin, sulfa)" value={searchParams.allergy} onChange={handleChange} style={inputStyle} />
+            <input name="med_id" type="text" placeholder="med_id (e.g. 1, 2, 3)" value={searchParams.med_id} onChange={handleChange} style={inputStyle} />
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

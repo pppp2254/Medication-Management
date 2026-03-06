@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Date, ForeignKey
+from sqlalchemy import Column, BigInteger, String, Date, ForeignKey,Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -21,6 +21,7 @@ class Patient(Base):
     doctor_id = Column(BigInteger, ForeignKey("staff.staff_id"), nullable=True)
 
     treatments = relationship("Treatment", back_populates="patient")
+    is_deleted = Column(Boolean, default=False)
 
 
 class Treatment(Base):

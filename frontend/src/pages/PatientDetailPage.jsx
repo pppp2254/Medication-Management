@@ -271,7 +271,7 @@ export default function PatientDetailPage() {
               </div>
             )}
             
-            {userRole === 'doctor' && history && (
+            {userRole === 'doctor'&& (
               <div style={{ marginTop: '10px' }}>
                 <input 
                   type="file" 
@@ -286,11 +286,7 @@ export default function PatientDetailPage() {
                 )}
               </div>
             )}
-            {userRole === 'doctor' && !history && (
-              <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '5px' }}>
-                * Please create medical history first to upload photo.
-              </p>
-            )}
+            
           </div>
           {/* --------------------------- */}
 
@@ -397,7 +393,7 @@ export default function PatientDetailPage() {
       {/* Dispense Medication — doctor/pharmacist only */}
       {(userRole === 'doctor' || userRole === 'pharmacist') && (
         <div style={{ ...styles.card, marginTop: '24px' }}>
-          <h3 style={styles.sectionTitle}>💊 Dispense Medication</h3>
+          <h3 style={styles.sectionTitle}>Dispense Medication</h3>
           <form onSubmit={handleDispense} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 2, minWidth: '160px' }}>
               <label style={styles.label}>Medication <span style={{ color: '#ef4444' }}>*</span></label>
