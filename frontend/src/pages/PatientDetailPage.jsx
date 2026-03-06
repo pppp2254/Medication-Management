@@ -45,7 +45,11 @@ export default function PatientDetailPage() {
 
   const fetchPatientHistory = async () => {
     try {
-      const res = await fetch(`${PATIENT_API}/${id}/history`);
+      const res = await fetch(`${PATIENT_API}/${id}/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}` 
+        }
+      });
       if (res.ok) setHistory(await res.json());
       else if (res.status === 404) setHistory(null);
     } catch (e) { console.error(e); }
@@ -86,7 +90,10 @@ export default function PatientDetailPage() {
     try {
       const res = await fetch(`${PATIENT_API}/${id}/history`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(editFormData),
       });
       if (res.ok) {

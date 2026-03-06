@@ -8,9 +8,12 @@ export default function TreatmentSection({ patient }) {
 
   const fetchTreatments = async () => {
     if (!patient || !patient.p_id) return;
+    const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/patients/${patient.p_id}/treatments`);
+      const response = await fetch(`http://localhost:8000/api/v1/patients/${patient.p_id}/treatments`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (response.ok) {
         const data = await response.json();
         setTreatments(data);
@@ -33,11 +36,15 @@ export default function TreatmentSection({ patient }) {
       alert("Patient data not found. Cannot add treatment.");
       return;
     }
+    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch(`http://localhost:8000/api/v1/patients/${patient.p_id}/treatments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(treatmentData),
       });
 

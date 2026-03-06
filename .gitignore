@@ -2,3 +2,6 @@ token
 __pycache__/
 *.pyc
 frontend/node_modules/
+backend/.venv/
+.venv/
+.env

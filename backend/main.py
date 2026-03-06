@@ -7,7 +7,7 @@ from database import engine, Base, connect_mongodb, disconnect_mongodb
 from models.med_info_mongo_model import MedInfo
 from models.staff_mongo_db import StaffAuth, EventLog
 from models.patient_mongo_db import Patient_hist 
-from routers import inventory_router, patients_router, auth_router
+from routers import inventory_router, patients_router, auth_router, staff_router
 
 # ==========================================
 # 2. การเชื่อมต่อฐานข้อมูลตอนเปิด/ปิด Server
@@ -77,6 +77,7 @@ app.include_router(inventory_router.router, prefix="/api/v1/inventory", tags=["I
 
 # คนที่ 3: ระบบพนักงานและ Log
 app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(staff_router.router, prefix="/api/v1/staff", tags=["Staff"])
 
 # API ทดสอบเบื้องต้น
 @app.get("/")

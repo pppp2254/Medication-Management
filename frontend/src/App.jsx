@@ -15,6 +15,7 @@ import PatientPage from './pages/Patiens';
 import PatientDetailPage from './pages/PatientDetailPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminPermissionPage from './pages/Permission';
 
 const navLinks = [
   { to: "/", label: "Home" },
@@ -31,8 +32,13 @@ function Navbar() {
   const location = useLocation();
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("permissions");
     window.location.href = "/auth/login";
   }
+  const permissions = JSON.parse(localStorage.getItem("permissions") || "[]");
+  const isAdmin = permissions.includes("Admin");
+
   return (
     <nav style={styles.nav}>
       <b style={styles.logo}>🏥 Clinic App</b>
@@ -46,8 +52,28 @@ function Navbar() {
             {l.label}
           </Link>
         ))}
+        {isAdmin && (
+          <Link
+            to="/admin/permissions"
+            style={{ ...styles.link, ...(location.pathname === "/admin/permissions" ? styles.activeLink : {}) }}
+          >
+            Admin Panel
+          </Link>
+        )}
       </div>
       <button onClick={handleLogout} style={styles.btn}>Logout</button>
+    </nav>
+  );
+}
+
+function PublicNavbar() {
+  return (
+    <nav style={styles.nav}>
+      <b style={styles.logo}>🏥 Clinic App</b>
+      <div style={styles.links}>
+        <Link to="/auth/login" style={styles.link}>Login</Link>
+        <Link to="/auth/register" style={styles.link}>Register</Link>
+      </div>
     </nav>
   );
 }
@@ -63,7 +89,10 @@ function App() {
             path="/auth/login"
             element={
               <PublicRoute>
-                <Login />
+                <>
+                  <PublicNavbar />
+                  <Login />
+                </>
               </PublicRoute>
             }
           />
@@ -72,7 +101,10 @@ function App() {
             path="/auth/register"
             element={
               <PublicRoute>
-                <Register />
+                <>
+                  <PublicNavbar />
+                  <Register />
+                </>
               </PublicRoute>
             }
           />
@@ -94,6 +126,8 @@ function App() {
                     <Route path="/inventory/view" element={<ViewMedications />} />
                     <Route path="/inventory/report" element={<DrugReport />} />
                     <Route path="/staff" element={<StaffPage />} />
+                    {/* 🔐 ADMIN ONLY */}
+                    <Route path="/admin/permissions" element={<AdminPermissionPage />} />
                   </Routes>
                 </>
               </ProtectedRoute>

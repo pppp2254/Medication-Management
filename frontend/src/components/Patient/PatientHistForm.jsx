@@ -20,11 +20,15 @@ export default function PatientHistoryForm({ patient, onSuccess, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    const token = localStorage.getItem('token'); // 👈 1. ดึง Token
 
     try {
       const response = await fetch(`http://localhost:8000/api/v1/patients/${patient.p_id}/history`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 👈 2. แนบ Token ตรงนี้
+        },
         body: JSON.stringify(formData),
       });
 

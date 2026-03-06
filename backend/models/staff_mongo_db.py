@@ -2,10 +2,18 @@ from beanie import Document
 from mongoengine import DateTimeField
 from typing import Optional
 from datetime import datetime, UTC
+from pydantic import Field
+from enum import Enum
+
+class Role(str, Enum):
+    ADMIN = "Admin"
+    DOCTOR = "Doctor"
+    PHARMACIST = "Pharmacist"
+    TESTROLE = "Testing role"
 
 class StaffAuth(Document):
     staff_id: int
-    position: Optional[str] = None
+    permission: list[Role] = Field(default_factory=list)
 
     class Settings:
         name = "staff_auth"
