@@ -41,28 +41,30 @@ export default function DrugReport() {
 
   useEffect(() => { fetchReport(); }, [range]);
 
-  // Draw bar chart on canvas
   useEffect(() => {
     if (!canvasRef.current || data.length === 0) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     const W = canvas.width;
     const H = canvas.height;
-    const paddingLeft = 60;
-    const paddingBottom = 60;
-    const paddingTop = 20;
-    const paddingRight = 20;
+    const paddingLeft = 70;
+    const paddingBottom = 70;
+    const paddingTop = 30;
+    const paddingRight = 30;
 
     ctx.clearRect(0, 0, W, H);
 
-    const values = data.map(d => mode === "quantity" ? d.total_quantity_in : d.total_price_in);
-    const maxVal = Math.max(...values, 1);
+    const inValues = data.map(d => mode === "quantity" ? d.total_quantity_in : d.total_price_in);
+    const outValues = data.map(d => mode === "quantity" ? d.total_quantity_out : d.total_price_out);
+    const maxVal = Math.max(...inValues, ...outValues, 1);
+
     const chartW = W - paddingLeft - paddingRight;
     const chartH = H - paddingTop - paddingBottom;
-    const barWidth = Math.min(60, (chartW / data.length) * 0.6);
-    const gap = chartW / data.length;
+    const groupWidth = chartW / data.length;
+    const barWidth = Math.min(30, groupWidth * 0.35);
+    const gap = 4;
 
-    // Grid lines
+    // Grid lines + Y labels
     ctx.strokeStyle = "#f1f5f9";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 5; i++) {
@@ -71,40 +73,55 @@ export default function DrugReport() {
       ctx.moveTo(paddingLeft, y);
       ctx.lineTo(W - paddingRight, y);
       ctx.stroke();
-
-      // Y labels
       ctx.fillStyle = "#94a3b8";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "right";
       const labelVal = Math.round((maxVal * i) / 5);
-      ctx.fillText(mode === "price" ? `฿${labelVal.toLocaleString()}` : labelVal, paddingLeft - 6, y + 4);
+      ctx.fillText(mode === "price" ? `฿${labelVal.toLocaleString()}` : labelVal, paddingLeft - 8, y + 4);
     }
 
     // Bars
     data.forEach((d, i) => {
-      const val = mode === "quantity" ? d.total_quantity_in : d.total_price_in;
-      const barH = (val / maxVal) * chartH;
-      const x = paddingLeft + gap * i + gap / 2 - barWidth / 2;
-      const y = paddingTop + chartH - barH;
+      const inVal = mode === "quantity" ? d.total_quantity_in : d.total_price_in;
+      const outVal = mode === "quantity" ? d.total_quantity_out : d.total_price_out;
+      const centerX = paddingLeft + groupWidth * i + groupWidth / 2;
 
-      // Bar
-      ctx.fillStyle = mode === "quantity" ? "#3b82f6" : "#16a34a";
+      // Drug In bar (blue)
+      const inH = (inVal / maxVal) * chartH;
+      const inX = centerX - barWidth - gap / 2;
+      const inY = paddingTop + chartH - inH;
+      ctx.fillStyle = "#3b82f6";
       ctx.beginPath();
-      ctx.roundRect(x, y, barWidth, barH, [4, 4, 0, 0]);
+      ctx.roundRect(inX, inY, barWidth, inH, [4, 4, 0, 0]);
       ctx.fill();
+      if (inVal > 0) {
+        ctx.fillStyle = "#1e40af";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(mode === "price" ? `฿${inVal.toLocaleString()}` : inVal, inX + barWidth / 2, inY - 4);
+      }
 
-      // Value on top
-      ctx.fillStyle = "#374151";
-      ctx.font = "11px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(mode === "price" ? `฿${val.toLocaleString()}` : val, x + barWidth / 2, y - 5);
+      // Drug Out bar (red)
+      const outH = (outVal / maxVal) * chartH;
+      const outX = centerX + gap / 2;
+      const outY = paddingTop + chartH - outH;
+      ctx.fillStyle = outVal > 0 ? "#ef4444" : "#fecaca";
+      ctx.beginPath();
+      ctx.roundRect(outX, outY > 0 ? outY : paddingTop + chartH - 4, barWidth, outH > 0 ? outH : 4, [4, 4, 0, 0]);
+      ctx.fill();
+      if (outVal > 0) {
+        ctx.fillStyle = "#991b1b";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(mode === "price" ? `฿${outVal.toLocaleString()}` : outVal, outX + barWidth / 2, outY - 4);
+      }
 
       // X label
       ctx.fillStyle = "#64748b";
       ctx.font = "11px sans-serif";
       ctx.textAlign = "center";
       const label = d.name.length > 10 ? d.name.slice(0, 10) + "…" : d.name;
-      ctx.fillText(label, x + barWidth / 2, H - paddingBottom + 16);
+      ctx.fillText(label, centerX, H - paddingBottom + 18);
     });
 
     // Axes
@@ -116,15 +133,29 @@ export default function DrugReport() {
     ctx.lineTo(W - paddingRight, paddingTop + chartH);
     ctx.stroke();
 
+    // Legend
+    ctx.fillStyle = "#3b82f6";
+    ctx.fillRect(paddingLeft, H - 20, 14, 12);
+    ctx.fillStyle = "#374151";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Drug In", paddingLeft + 18, H - 10);
+
+    ctx.fillStyle = "#ef4444";
+    ctx.fillRect(paddingLeft + 90, H - 20, 14, 12);
+    ctx.fillStyle = "#374151";
+    ctx.fillText("Drug Out", paddingLeft + 108, H - 10);
+
   }, [data, mode]);
 
-  const totalQty = data.reduce((s, d) => s + d.total_quantity_in, 0);
-  const totalPrice = data.reduce((s, d) => s + d.total_price_in, 0);
+  const totalQtyIn = data.reduce((s, d) => s + d.total_quantity_in, 0);
+  const totalPriceIn = data.reduce((s, d) => s + d.total_price_in, 0);
+  const totalQtyOut = data.reduce((s, d) => s + d.total_quantity_out, 0);
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <h2 style={styles.title}>📊 Drug In Report</h2>
+        <h2 style={styles.title}>📊 Drug In/Out Report</h2>
         <p style={styles.subtitle}>{meta ? `${meta.start} → ${meta.end}` : "Loading..."}</p>
 
         {/* Time Range */}
@@ -149,31 +180,35 @@ export default function DrugReport() {
               <p style={styles.cardLabel}>Total Drug Types</p>
               <p style={styles.cardValue}>{data.length}</p>
             </div>
-            <div style={styles.card}>
-              <p style={styles.cardLabel}>Total Qty In</p>
-              <p style={styles.cardValue}>{totalQty.toLocaleString()} units</p>
+            <div style={{ ...styles.card, borderTop: "4px solid #3b82f6" }}>
+              <p style={styles.cardLabel}>🔵 Total Qty In</p>
+              <p style={{ ...styles.cardValue, color: "#2563eb" }}>{totalQtyIn.toLocaleString()} units</p>
             </div>
-            <div style={{ ...styles.card, background: "#f0fdf4" }}>
-              <p style={styles.cardLabel}>Total Value In</p>
-              <p style={{ ...styles.cardValue, color: "#16a34a" }}>฿{totalPrice.toLocaleString()}</p>
+            <div style={{ ...styles.card, borderTop: "4px solid #3b82f6" }}>
+              <p style={styles.cardLabel}>🔵 Total Value In</p>
+              <p style={{ ...styles.cardValue, color: "#2563eb" }}>฿{totalPriceIn.toLocaleString()}</p>
+            </div>
+            <div style={{ ...styles.card, borderTop: "4px solid #ef4444" }}>
+              <p style={styles.cardLabel}>🔴 Total Qty Out</p>
+              <p style={{ ...styles.cardValue, color: "#dc2626" }}>{totalQtyOut.toLocaleString()} units</p>
             </div>
           </div>
         )}
 
         {loading && <div style={styles.center}>Loading...</div>}
         {error && <div style={styles.errorBox}>{error}</div>}
-
         {!loading && !error && data.length === 0 && (
-          <div style={styles.center}>No data for this time range.</div>
+          <div style={styles.center}>No data for this time range. Add some stock first!</div>
         )}
 
         {/* Canvas Chart */}
         {!loading && !error && data.length > 0 && (
           <div style={styles.chartBox}>
             <h3 style={styles.chartTitle}>
-              {mode === "quantity" ? "Quantity In by Medication" : "Value In by Medication (฿)"}
+              {mode === "quantity" ? "Quantity In/Out by Medication" : "Value In/Out by Medication (฿)"}
+              <span style={styles.note}> — Drug Out coming soon (treatment table)</span>
             </h3>
-            <canvas ref={canvasRef} width={820} height={320} style={{ width: "100%", height: "auto" }} />
+            <canvas ref={canvasRef} width={860} height={380} style={{ width: "100%", height: "auto" }} />
           </div>
         )}
 
@@ -185,8 +220,9 @@ export default function DrugReport() {
               <thead>
                 <tr style={styles.thead}>
                   <th style={styles.th}>Medication</th>
-                  <th style={{ ...styles.th, textAlign: "right" }}>Qty In</th>
-                  <th style={{ ...styles.th, textAlign: "right" }}>Value In (฿)</th>
+                  <th style={{ ...styles.th, textAlign: "right", color: "#2563eb" }}>🔵 Qty In</th>
+                  <th style={{ ...styles.th, textAlign: "right", color: "#2563eb" }}>🔵 Value In (฿)</th>
+                  <th style={{ ...styles.th, textAlign: "right", color: "#dc2626" }}>🔴 Qty Out</th>
                 </tr>
               </thead>
               <tbody>
@@ -194,13 +230,15 @@ export default function DrugReport() {
                   <tr key={i} style={{ background: i % 2 === 0 ? "#f8fafc" : "#fff" }}>
                     <td style={styles.td}>{d.name}</td>
                     <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#2563eb" }}>{d.total_quantity_in.toLocaleString()}</td>
-                    <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#16a34a" }}>฿{d.total_price_in.toLocaleString()}</td>
+                    <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#2563eb" }}>฿{d.total_price_in.toLocaleString()}</td>
+                    <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#dc2626" }}>{d.total_quantity_out.toLocaleString()}</td>
                   </tr>
                 ))}
                 <tr style={{ background: "#f0fdf4", fontWeight: "800" }}>
                   <td style={styles.td}>Total</td>
-                  <td style={{ ...styles.td, textAlign: "right", color: "#2563eb" }}>{totalQty.toLocaleString()}</td>
-                  <td style={{ ...styles.td, textAlign: "right", color: "#16a34a" }}>฿{totalPrice.toLocaleString()}</td>
+                  <td style={{ ...styles.td, textAlign: "right", color: "#2563eb" }}>{totalQtyIn.toLocaleString()}</td>
+                  <td style={{ ...styles.td, textAlign: "right", color: "#2563eb" }}>฿{totalPriceIn.toLocaleString()}</td>
+                  <td style={{ ...styles.td, textAlign: "right", color: "#dc2626" }}>{totalQtyOut.toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
@@ -222,14 +260,15 @@ const styles = {
   toggleRow: { display: "flex", gap: "8px", marginBottom: "24px" },
   modeBtn: { padding: "8px 20px", background: "#e2e8f0", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "14px", fontWeight: "600", color: "#475569" },
   modeBtnActive: { background: "#0f172a", color: "#fff" },
-  cards: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "24px" },
-  card: { background: "#fff", borderRadius: "10px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0" },
+  cards: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" },
+  card: { background: "#fff", borderRadius: "10px", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", borderTop: "4px solid #e2e8f0" },
   cardLabel: { margin: "0 0 6px", fontSize: "12px", color: "#64748b", fontWeight: "600" },
-  cardValue: { margin: 0, fontSize: "22px", fontWeight: "800", color: "#0f172a" },
+  cardValue: { margin: 0, fontSize: "20px", fontWeight: "800", color: "#0f172a" },
   center: { textAlign: "center", padding: "60px", color: "#94a3b8" },
   errorBox: { background: "#fee2e2", color: "#991b1b", padding: "12px 16px", borderRadius: "8px", marginBottom: "20px" },
   chartBox: { background: "#fff", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0", marginBottom: "20px" },
   chartTitle: { margin: "0 0 16px", fontSize: "15px", fontWeight: "700", color: "#374151" },
+  note: { fontSize: "12px", fontWeight: "400", color: "#94a3b8" },
   tableBox: { background: "#fff", borderRadius: "12px", padding: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #e2e8f0" },
   table: { width: "100%", borderCollapse: "collapse" },
   thead: { background: "#f1f5f9" },
