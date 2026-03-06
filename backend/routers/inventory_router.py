@@ -11,10 +11,6 @@ from models.med_info_mongo_model import MedInfo
 
 router = APIRouter()
 
-# ==========================================
-# Pydantic Schemas
-# ==========================================
-
 class MedicationCreate(BaseModel):
     name: str
     common_name: Optional[str] = None
@@ -31,9 +27,7 @@ class MedInfoCreate(BaseModel):
     guideline: Optional[str] = None
     warning: Optional[str] = None
 
-# ==========================================
-# Medication Endpoints
-# ==========================================
+# Medication
 
 @router.post("/medication", summary="Add new medication")
 async def add_medication(data: MedicationCreate, db: AsyncSession = Depends(get_db)):
@@ -49,9 +43,7 @@ async def get_medications(db: AsyncSession = Depends(get_db)):
     meds = result.scalars().all()
     return [{"med_id": m.med_id, "name": m.name, "common_name": m.common_name, "price": m.price} for m in meds]
 
-# ==========================================
-# Inventory Endpoints
-# ==========================================
+# Inventory
 
 @router.post("/stock", summary="Add stock to inventory")
 async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db)):
@@ -60,11 +52,9 @@ async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db)):
     if not med:
         raise HTTPException(status_code=404, detail=f"Medication with id {data.med_id} not found")
 
-    # Add to inventory
     new_stock = Inventory(med_id=data.med_id, in_day=data.in_day, exp_day=data.exp_day, quantity=data.quantity)
     db.add(new_stock)
 
-    # Log drug in to stock_log for history
     log = StockLog(med_id=data.med_id, quantity=data.quantity, price_per_unit=med.price, log_date=data.in_day)
     db.add(log)
 
@@ -78,9 +68,7 @@ async def get_stock(db: AsyncSession = Depends(get_db)):
     stocks = result.scalars().all()
     return [{"inv_id": s.inv_id, "med_id": s.med_id, "in_day": s.in_day, "exp_day": s.exp_day, "quantity": s.quantity} for s in stocks]
 
-# ==========================================
-# Med Info Endpoints (MongoDB)
-# ==========================================
+# Med Info MongoDB
 
 @router.post("/medinfo", summary="Add med info (MongoDB)")
 async def add_med_info(data: MedInfoCreate):
@@ -95,9 +83,8 @@ async def get_med_info():
     infos = await MedInfo.find_all().to_list()
     return [{"med_id": i.med_id, "guideline": i.guideline, "warning": i.warning} for i in infos]
 
-# ==========================================
-# View - combined medication + stock + med info
-# ==========================================
+
+# View 
 
 @router.get("/view", summary="View all med details with stock and info")
 async def view_medications(db: AsyncSession = Depends(get_db)):
@@ -114,9 +101,7 @@ async def view_medications(db: AsyncSession = Depends(get_db)):
         })
     return output
 
-# ==========================================
-# Delete Endpoints
-# ==========================================
+# Delete 
 
 @router.delete("/stock/empty/all", summary="Delete all stock entries with quantity 0")
 async def delete_empty_stock(db: AsyncSession = Depends(get_db)):
@@ -149,9 +134,7 @@ async def delete_stock(inv_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"status": "success", "message": f"Stock entry {inv_id} deleted"}
 
-# ==========================================
-# Report Endpoint (uses stock_log for accurate drug in history)
-# ==========================================
+# Report 
 
 @router.get("/report", summary="Get drug in/out report by time range")
 async def get_report(range: str = "30d", db: AsyncSession = Depends(get_db)):
@@ -204,9 +187,7 @@ async def get_report(range: str = "30d", db: AsyncSession = Depends(get_db)):
         "data": list(med_map.values())
     }
 
-# ==========================================
-# Dashboard Endpoint
-# ==========================================
+# Dashboard 
 
 @router.get("/dashboard", summary="Get dashboard summary stats")
 async def get_dashboard(db: AsyncSession = Depends(get_db)):
