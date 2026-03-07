@@ -34,7 +34,7 @@ export default function ViewLogs() {
         <tbody>
           {logs.map((log) => (
             <tr key={log._id}>
-              <td>{new Date(log.date).toLocaleString()}</td>
+              <td>{new Date(log.date + "Z").toLocaleString()}</td>
               <td>{log.staff_id}</td>
               <td>{log.action}</td>
               <td>{log.description}</td>
