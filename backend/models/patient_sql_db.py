@@ -32,5 +32,6 @@ class Treatment(Base):
     med_id = Column(BigInteger, ForeignKey("medication.med_id"), nullable=False)
     amount = Column(BigInteger, nullable=False)
     date = Column(Date, nullable=False)
+    exp_date = Column(Date, nullable=True)
 
     patient = relationship("Patient", back_populates="treatments")

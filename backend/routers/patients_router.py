@@ -69,6 +69,7 @@ class TreatmentResponse(BaseModel):
     med_id: int
     amount: int
     date: date
+    exp_date: Optional[date] = None
 
     class Config:
         from_attributes = True
@@ -420,6 +421,7 @@ async def add_treatment(p_id: int, body: TreatmentCreate, db: AsyncSession = Dep
 
     # 3. Get valid (non-expired) stock sorted by expiry date — FEFO (First Expired First Out)
     today = date.today()
+    
     stock_result = await db.execute(
         select(Inventory)
         .where(Inventory.med_id == body.med_id)
@@ -445,9 +447,9 @@ async def add_treatment(p_id: int, body: TreatmentCreate, db: AsyncSession = Dep
         deduct = min(stock.quantity, remaining)
         stock.quantity -= deduct
         remaining -= deduct
-
+    dispensed_exp_date = stock_entries[0].exp_day if stock_entries else None
     # 6. Save treatment record
-    treatment = Treatment(p_id=p_id, med_id=body.med_id, amount=body.amount, date=body.date)
+    treatment = Treatment(p_id=p_id, med_id=body.med_id, amount=body.amount, date=body.date,exp_date=dispensed_exp_date)
     db.add(treatment)
 
     try:

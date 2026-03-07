@@ -446,7 +446,7 @@ export default function PatientDetailPage() {
 
       {/* Treatment History */}
       <div style={{ ...styles.card, marginTop: '24px' }}>
-        <h3 style={styles.sectionTitle}>📋 Treatment History</h3>
+        <h3 style={styles.sectionTitle}>Treatment History</h3>
         {treatments.length === 0 ? (
           <p style={{ color: '#94a3b8', fontSize: '14px', fontStyle: 'italic' }}>No treatments recorded yet.</p>
         ) : (
@@ -454,6 +454,7 @@ export default function PatientDetailPage() {
             <thead>
               <tr style={{ background: '#f1f5f9', textAlign: 'left' }}>
                 <th style={styles.th}>Date</th>
+                <th style={styles.th}>Exp Date</th>
                 <th style={styles.th}>Medication</th>
                 <th style={styles.th}>Amount</th>
               </tr>
@@ -462,6 +463,9 @@ export default function PatientDetailPage() {
               {[...treatments].reverse().map(t => (
                 <tr key={t.t_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={styles.td}>{t.date}</td>
+                  <td style={styles.td}>
+                    {t.exp_date ? <span style={{ color: '#1e293b' }}>{t.exp_date}</span> : '-'}
+                  </td>
                   <td style={styles.td}>{getMedName(t.med_id)}</td>
                   <td style={styles.td}>{t.amount} units</td>
                 </tr>
