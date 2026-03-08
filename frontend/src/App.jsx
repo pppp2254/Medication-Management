@@ -4,6 +4,9 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import PublicRoute from './components/Auth/PublicRoute';
 
+import Login from './pages/Login';
+import Register from './pages/Register';
+
 import AddMedication from './pages/AddMedication';
 import AddStock from './pages/AddStock';
 import AddMedInfo from './pages/AddMedInfo';
@@ -13,8 +16,7 @@ import Home from './pages/Home';
 import StaffPage from './pages/Staff';
 import PatientPage from './pages/Patiens';
 import PatientDetailPage from './pages/PatientDetailPage';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import ViewLogs from "./pages/Logs";
 import AdminPermissionPage from './pages/Permission';
 
 const navLinks = [
@@ -25,7 +27,8 @@ const navLinks = [
   { to: "/inventory/add-medinfo", label: "Add Med Info" },
   { to: "/inventory/view", label: "View Medications" },
   { to: "/inventory/report", label: "Drug Report" },
-  { to: "/staff", label: "Staff" },
+  { to: "/staff", label: "Staffs" },
+  { to: "/viewlogs", label: "Logs"}
 ];
 
 function Navbar() {
@@ -126,6 +129,7 @@ function App() {
                     <Route path="/inventory/view" element={<ViewMedications />} />
                     <Route path="/inventory/report" element={<DrugReport />} />
                     <Route path="/staff" element={<StaffPage />} />
+                    <Route path="/viewlogs" element={<ViewLogs />} />
                     {/* 🔐 ADMIN ONLY */}
                     <Route path="/admin/permissions" element={<AdminPermissionPage />} />
                   </Routes>

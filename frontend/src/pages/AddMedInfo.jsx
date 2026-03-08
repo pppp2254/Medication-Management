@@ -8,6 +8,7 @@ export default function AddMedInfo() {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const token = localStorage.getItem("token");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,7 +17,10 @@ export default function AddMedInfo() {
     try {
       const res = await fetch(`${API}/medinfo`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}` 
+         },
         body: JSON.stringify({ ...form, med_id: parseInt(form.med_id) }),
       });
       const data = await res.json();

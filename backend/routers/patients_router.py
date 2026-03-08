@@ -19,10 +19,14 @@ from models.patient_sql_db import Patient, Treatment
 from models.med_sql_models import Medication, Inventory
 from models.patient_mongo_db import Patient_hist
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+from routers.auth_router import SECRET_KEY, ALGORITHM
 
-SECRET_KEY = "your-very-secret-key-change-this"
-ALGORITHM = "HS256"
+from util.logger import log_event, LogAction
+from routers.auth_router import get_current_user
+from models.staff_mongo_db import Role
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 os.makedirs("uploads/patients", exist_ok=True)
 # ==========================================
@@ -357,6 +361,17 @@ async def create_patient(
 
     try:
         await db.commit()
+
+        try:
+            await log_event(
+                int(current_user["id"]),
+                LogAction.ADD_PATIENT,
+                f"Patient ID: {body.citizen_id} was added for Doctor: {doctor_id}",
+                [Role.DOCTOR]
+            )
+        except Exception as e:
+            print(f"Logging Failed: {e}")
+
         await db.refresh(patient)
     except Exception:
         await db.rollback()

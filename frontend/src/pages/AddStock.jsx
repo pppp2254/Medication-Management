@@ -29,7 +29,8 @@ export default function AddStock() {
   };
 
   const expireStatus = getExpireStatus(form.exp_day);
-
+  const token = localStorage.getItem("token");
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -44,7 +45,10 @@ export default function AddStock() {
     try {
       const res = await fetch(`${API}/stock`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}` 
+         },
         body: JSON.stringify({ ...form, med_id: parseInt(form.med_id), quantity: parseInt(form.quantity) }),
       });
       const data = await res.json();

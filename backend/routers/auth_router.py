@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
+from util.logger import log_event, LogAction
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 SECRET_KEY = "your-very-secret-key-change-this"
@@ -101,6 +103,13 @@ async def register(payload: RegisterSchema, db: AsyncSession = Depends(get_db)):
         ).insert()
 
         await db.commit()
+
+        await log_event(
+            user.staff_id,
+            LogAction.CREATE_ACCOUNT,
+            f"User {user.username} is created.",
+            [Role.ADMIN]
+        )
 
     except:
         await db.rollback()

@@ -9,6 +9,10 @@ from database import get_db
 from models.med_sql_models import Medication, Inventory, StockLog
 from models.med_info_mongo_model import MedInfo
 
+from util.logger import log_event, LogAction
+from routers.auth_router import get_current_user
+from models.staff_mongo_db import Role
+
 router = APIRouter()
 
 class MedicationCreate(BaseModel):
@@ -30,11 +34,18 @@ class MedInfoCreate(BaseModel):
 # Medication
 
 @router.post("/medication", summary="Add new medication")
-async def add_medication(data: MedicationCreate, db: AsyncSession = Depends(get_db)):
+async def add_medication(data: MedicationCreate, db: AsyncSession = Depends(get_db), user = Depends(get_current_user)):
     new_med = Medication(name=data.name, common_name=data.common_name, price=data.price)
     db.add(new_med)
     await db.commit()
     await db.refresh(new_med)
+
+    await log_event(
+        user.staff_id,
+        LogAction.ADD_MED,
+        f"Added a New Medication ID: {new_med.med_id} Name: {data.name}",
+        None
+    )
     return {"status": "success", "med_id": new_med.med_id, "name": new_med.name}
 
 @router.get("/medication", summary="Get all medications")
@@ -46,7 +57,7 @@ async def get_medications(db: AsyncSession = Depends(get_db)):
 # Inventory
 
 @router.post("/stock", summary="Add stock to inventory")
-async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db)):
+async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db), user = Depends(get_current_user)):
     result = await db.execute(select(Medication).where(Medication.med_id == data.med_id))
     med = result.scalar_one_or_none()
     if not med:
@@ -59,6 +70,13 @@ async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db)):
     db.add(log)
 
     await db.commit()
+
+    await log_event(
+        user.staff_id,
+        LogAction.ADD_STOCK,
+        f"Added Medication ID: {data.med_id} Quantity: {data.quantity}",
+        None
+    )
     await db.refresh(new_stock)
     return {"status": "success", "inv_id": new_stock.inv_id}
 
@@ -71,11 +89,18 @@ async def get_stock(db: AsyncSession = Depends(get_db)):
 # Med Info MongoDB
 
 @router.post("/medinfo", summary="Add med info (MongoDB)")
-async def add_med_info(data: MedInfoCreate):
+async def add_med_info(data: MedInfoCreate, user = Depends(get_current_user)):
     existing = await MedInfo.find_one(MedInfo.med_id == data.med_id)
     if existing:
         raise HTTPException(status_code=400, detail=f"MedInfo for med_id {data.med_id} already exists")
     await MedInfo(med_id=data.med_id, guideline=data.guideline, warning=data.warning).insert()
+
+    await log_event(
+        user.staff_id,
+        LogAction.ADD_MED_INFO,
+        f"Added medication info for Medication ID: {data.med_id}",
+        
+    )
     return {"status": "success", "med_id": data.med_id}
 
 @router.get("/medinfo", summary="Get all med info (MongoDB)")
