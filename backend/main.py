@@ -11,9 +11,7 @@ from models.staff_mongo_db import StaffAuth, EventLog
 from models.patient_mongo_db import Patient_hist 
 from routers import inventory_router, patients_router, auth_router, staff_router
 
-# ==========================================
-# 2. การเชื่อมต่อฐานข้อมูลตอนเปิด/ปิด Server
-# ==========================================
+#connection
 MONGO_URL = "mongodb://admin:adminpassword@localhost:27017"
 MONGO_DB_NAME = "clinic_db_mongo"
 POSTGRES_URL = "postgresql://user:password@localhost:5432/clinic_db"
@@ -22,29 +20,22 @@ MONGO_MODELS = [MedInfo, StaffAuth, EventLog, Patient_hist]
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- ทำงานตอนเริ่ม Server (Startup) ---
     print("🚀 Starting up... Connecting to databases.")
     
-    # เชื่อมต่อ MongoDB ด้วย Motor และ Beanie
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print("✅ PostgreSQL Connected & Tables Ready!")
     await connect_mongodb(document_models=MONGO_MODELS)
     
-    # เชื่อมต่อ PostgreSQL ด้วย SQLAlchemy
-    # Base.metadata.create_all(bind=engine)
     print("✅ PostgreSQL Connected!")
 
-    yield # ปล่อยให้ Server ทำงาน
+    yield 
     
-    # --- ทำงานตอนปิด Server (Shutdown) ---
     print("🛑 Shutting down... Closing connections.")
     await disconnect_mongodb()
     print("Shutdown complete!")
 
-# ==========================================
-# 3. สร้างแอปพลิเคชัน FastAPI
-# ==========================================
+#FastAPI
 app = FastAPI(
     title="Clinic Management API",
     description="API สำหรับระบบจัดการคลินิก (MySQL + MongoDB)",
@@ -54,28 +45,22 @@ app = FastAPI(
 
 
 
-# ==========================================
-# 4. ตั้งค่า CORS (สำคัญมากสำหรับ React)
-# ==========================================
+#CORS
 origins = [
     "http://localhost:5173",
-    "https://my-clinic-project.vercel.app" # โดเมนจริงของหน้าเว็บ
 ]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # อนุญาตทุก Method (GET, POST, PUT, DELETE)
-    allow_headers=["*"], # อนุญาตทุก Header
+    allow_methods=["*"], 
+    allow_headers=["*"],
 )
 
 os.makedirs("uploads/patients", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# ==========================================
-# 5. ประกอบ API ของเพื่อนๆ แต่ละคนเข้ากับโครงหลัก
-# (เอาคอมเมนต์ออกเมื่อเพื่อนเขียนไฟล์เสร็จแล้ว)
-# ==========================================
+
 # คนที่ 1: ระบบผู้ป่วย
 app.include_router(patients_router.router, prefix="/api/v1/patients", tags=["Patients"])
 
