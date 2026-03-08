@@ -192,6 +192,10 @@ export default function DrugReport() {
               <p style={styles.cardLabel}>🔴 Total Qty Out</p>
               <p style={{ ...styles.cardValue, color: "#dc2626" }}>{totalQtyOut.toLocaleString()} units</p>
             </div>
+            <div style={{ ...styles.card, borderTop: "4px solid #ef4444" }}>
+              <p style={styles.cardLabel}>🔴 Total Value Out</p>
+              <p style={{ ...styles.cardValue, color: "#dc2626" }}>฿{data.reduce((s, d) => s + d.total_price_out, 0).toLocaleString()}</p>
+            </div>
           </div>
         )}
 
@@ -206,7 +210,7 @@ export default function DrugReport() {
           <div style={styles.chartBox}>
             <h3 style={styles.chartTitle}>
               {mode === "quantity" ? "Quantity In/Out by Medication" : "Value In/Out by Medication (฿)"}
-              <span style={styles.note}> — Drug Out coming soon (treatment table)</span>
+              
             </h3>
             <canvas ref={canvasRef} width={860} height={380} style={{ width: "100%", height: "auto" }} />
           </div>
@@ -223,6 +227,7 @@ export default function DrugReport() {
                   <th style={{ ...styles.th, textAlign: "right", color: "#2563eb" }}>🔵 Qty In</th>
                   <th style={{ ...styles.th, textAlign: "right", color: "#2563eb" }}>🔵 Value In (฿)</th>
                   <th style={{ ...styles.th, textAlign: "right", color: "#dc2626" }}>🔴 Qty Out</th>
+                  <th style={{ ...styles.th, textAlign: "right", color: "#dc2626" }}>🔴 Value Out (฿)</th>
                 </tr>
               </thead>
               <tbody>
@@ -232,6 +237,7 @@ export default function DrugReport() {
                     <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#2563eb" }}>{d.total_quantity_in.toLocaleString()}</td>
                     <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#2563eb" }}>฿{d.total_price_in.toLocaleString()}</td>
                     <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#dc2626" }}>{d.total_quantity_out.toLocaleString()}</td>
+                    <td style={{ ...styles.td, textAlign: "right", fontWeight: "700", color: "#dc2626" }}>฿{d.total_price_out.toLocaleString()}</td>
                   </tr>
                 ))}
                 <tr style={{ background: "#f0fdf4", fontWeight: "800" }}>
@@ -239,6 +245,7 @@ export default function DrugReport() {
                   <td style={{ ...styles.td, textAlign: "right", color: "#2563eb" }}>{totalQtyIn.toLocaleString()}</td>
                   <td style={{ ...styles.td, textAlign: "right", color: "#2563eb" }}>฿{totalPriceIn.toLocaleString()}</td>
                   <td style={{ ...styles.td, textAlign: "right", color: "#dc2626" }}>{totalQtyOut.toLocaleString()}</td>
+                  <td style={{ ...styles.td, textAlign: "right", color: "#dc2626" }}>฿{data.reduce((s,d) => s + d.total_price_out, 0).toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>

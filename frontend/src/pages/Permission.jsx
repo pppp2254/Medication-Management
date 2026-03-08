@@ -142,8 +142,6 @@ permissionLabel: { marginLeft: "6px", background: "#e8f5e9", color: "#2e7d32", p
 
 permissionCell: { padding: "14px", verticalAlign: "middle", display: "flex", flexWrap: "wrap", gap: "8px" },
 
-permissionCell: { padding: "14px", verticalAlign: "middle", display: "flex", flexWrap: "wrap", gap: "8px" },
-
 permissionButton: { padding: "6px 12px", borderRadius: "6px", border: "1px solid #ccc", cursor: "pointer", background: "#f5f5f5", fontWeight: "bold", userSelect: "none" },
 
 permissionActive: { background: "#4caf50", color: "white", border: "1px solid #4caf50" },

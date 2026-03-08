@@ -8,12 +8,13 @@ from datetime import date, datetime
 from database import get_db
 from models.med_sql_models import Medication, Inventory, StockLog
 from models.med_info_mongo_model import MedInfo
-
-from util.logger import log_event, LogAction
-from routers.auth_router import get_current_user
-from models.staff_mongo_db import Role
+from models.patient_sql_db import Treatment
 
 router = APIRouter()
+
+# ==========================================
+# Pydantic Schemas
+# ==========================================
 
 class MedicationCreate(BaseModel):
     name: str
@@ -31,21 +32,16 @@ class MedInfoCreate(BaseModel):
     guideline: Optional[str] = None
     warning: Optional[str] = None
 
-# Medication
+# ==========================================
+# Medication Endpoints
+# ==========================================
 
 @router.post("/medication", summary="Add new medication")
-async def add_medication(data: MedicationCreate, db: AsyncSession = Depends(get_db), user = Depends(get_current_user)):
+async def add_medication(data: MedicationCreate, db: AsyncSession = Depends(get_db)):
     new_med = Medication(name=data.name, common_name=data.common_name, price=data.price)
     db.add(new_med)
     await db.commit()
     await db.refresh(new_med)
-
-    await log_event(
-        user.staff_id,
-        LogAction.ADD_MED,
-        f"Added a New Medication ID: {new_med.med_id} Name: {data.name}",
-        None
-    )
     return {"status": "success", "med_id": new_med.med_id, "name": new_med.name}
 
 @router.get("/medication", summary="Get all medications")
@@ -54,29 +50,26 @@ async def get_medications(db: AsyncSession = Depends(get_db)):
     meds = result.scalars().all()
     return [{"med_id": m.med_id, "name": m.name, "common_name": m.common_name, "price": m.price} for m in meds]
 
-# Inventory
+# ==========================================
+# Inventory Endpoints
+# ==========================================
 
 @router.post("/stock", summary="Add stock to inventory")
-async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db), user = Depends(get_current_user)):
+async def add_stock(data: InventoryCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Medication).where(Medication.med_id == data.med_id))
     med = result.scalar_one_or_none()
     if not med:
         raise HTTPException(status_code=404, detail=f"Medication with id {data.med_id} not found")
 
+    # Add to inventory
     new_stock = Inventory(med_id=data.med_id, in_day=data.in_day, exp_day=data.exp_day, quantity=data.quantity)
     db.add(new_stock)
 
+    # Log drug in to stock_log for history
     log = StockLog(med_id=data.med_id, quantity=data.quantity, price_per_unit=med.price, log_date=data.in_day)
     db.add(log)
 
     await db.commit()
-
-    await log_event(
-        user.staff_id,
-        LogAction.ADD_STOCK,
-        f"Added Medication ID: {data.med_id} Quantity: {data.quantity}",
-        None
-    )
     await db.refresh(new_stock)
     return {"status": "success", "inv_id": new_stock.inv_id}
 
@@ -86,21 +79,16 @@ async def get_stock(db: AsyncSession = Depends(get_db)):
     stocks = result.scalars().all()
     return [{"inv_id": s.inv_id, "med_id": s.med_id, "in_day": s.in_day, "exp_day": s.exp_day, "quantity": s.quantity} for s in stocks]
 
-# Med Info MongoDB
+# ==========================================
+# Med Info Endpoints (MongoDB)
+# ==========================================
 
 @router.post("/medinfo", summary="Add med info (MongoDB)")
-async def add_med_info(data: MedInfoCreate, user = Depends(get_current_user)):
+async def add_med_info(data: MedInfoCreate):
     existing = await MedInfo.find_one(MedInfo.med_id == data.med_id)
     if existing:
         raise HTTPException(status_code=400, detail=f"MedInfo for med_id {data.med_id} already exists")
     await MedInfo(med_id=data.med_id, guideline=data.guideline, warning=data.warning).insert()
-
-    await log_event(
-        user.staff_id,
-        LogAction.ADD_MED_INFO,
-        f"Added medication info for Medication ID: {data.med_id}",
-        
-    )
     return {"status": "success", "med_id": data.med_id}
 
 @router.get("/medinfo", summary="Get all med info (MongoDB)")
@@ -108,8 +96,9 @@ async def get_med_info():
     infos = await MedInfo.find_all().to_list()
     return [{"med_id": i.med_id, "guideline": i.guideline, "warning": i.warning} for i in infos]
 
-
-# View 
+# ==========================================
+# View - combined medication + stock + med info
+# ==========================================
 
 @router.get("/view", summary="View all med details with stock and info")
 async def view_medications(db: AsyncSession = Depends(get_db)):
@@ -126,7 +115,9 @@ async def view_medications(db: AsyncSession = Depends(get_db)):
         })
     return output
 
-# Delete 
+# ==========================================
+# Delete Endpoints
+# ==========================================
 
 @router.delete("/stock/empty/all", summary="Delete all stock entries with quantity 0")
 async def delete_empty_stock(db: AsyncSession = Depends(get_db)):
@@ -159,7 +150,9 @@ async def delete_stock(inv_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     return {"status": "success", "message": f"Stock entry {inv_id} deleted"}
 
-# Report 
+# ==========================================
+# Report Endpoint (uses stock_log for accurate drug in history)
+# ==========================================
 
 @router.get("/report", summary="Get drug in/out report by time range")
 async def get_report(range: str = "30d", db: AsyncSession = Depends(get_db)):
@@ -205,6 +198,32 @@ async def get_report(range: str = "30d", db: AsyncSession = Depends(get_db)):
         med_map[med.med_id]["total_quantity_in"] += log.quantity
         med_map[med.med_id]["total_price_in"] += log.quantity * log.price_per_unit
 
+    # Drug out from treatment table
+    if start_date:
+        out_result = await db.execute(
+            select(Treatment, Medication)
+            .join(Medication, Treatment.med_id == Medication.med_id)
+            .where(Treatment.date >= start_date)
+        )
+    else:
+        out_result = await db.execute(
+            select(Treatment, Medication)
+            .join(Medication, Treatment.med_id == Medication.med_id)
+        )
+
+    for treatment, med in out_result.all():
+        if med.med_id not in med_map:
+            med_map[med.med_id] = {
+                "med_id": med.med_id,
+                "name": med.name,
+                "total_quantity_in": 0,
+                "total_price_in": 0,
+                "total_quantity_out": 0,
+                "total_price_out": 0,
+            }
+        med_map[med.med_id]["total_quantity_out"] += treatment.amount
+        med_map[med.med_id]["total_price_out"] += treatment.amount * med.price
+
     return {
         "range": range,
         "start_date": str(start_date) if start_date else "all time",
@@ -212,7 +231,9 @@ async def get_report(range: str = "30d", db: AsyncSession = Depends(get_db)):
         "data": list(med_map.values())
     }
 
-# Dashboard 
+# ==========================================
+# Dashboard Endpoint
+# ==========================================
 
 @router.get("/dashboard", summary="Get dashboard summary stats")
 async def get_dashboard(db: AsyncSession = Depends(get_db)):
