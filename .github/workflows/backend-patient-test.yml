@@ -10,6 +10,29 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: clinic_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongodb:
+        image: mongo:latest
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: adminpassword
+        ports:
+          - 27017:27017
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +53,6 @@ jobs:
         env:
           MONGO_URL: "mongodb://admin:adminpassword@localhost:27017"
           POSTGRES_URL: "postgresql://user:password@localhost:5432/clinic_db"
-          SECRET_KEY: "secret-key"
+          SECRET_KEY: "test-secret-key"
         run: |
           pytest tests/test_patients.py
