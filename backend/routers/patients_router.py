@@ -482,7 +482,7 @@ async def add_treatment(p_id: int, body: TreatmentCreate, db: AsyncSession = Dep
 
 @router.get("/{p_id}/history", response_model=PatientHistResponse)
 async def get_patient_history(p_id: int, current_user: dict = Depends(get_current_user_token)):
-    hist = await Patient_hist.find_one(Patient_hist.p_id == p_id)
+    hist = await Patient_hist.find_one({"p_id": p_id})
     if not hist:
         raise HTTPException(status_code=404, detail="Patient history not found")
     return hist
@@ -512,7 +512,7 @@ async def upload_patient_image(
 
 @router.post("/{p_id}/history", response_model=PatientHistResponse, status_code=status.HTTP_201_CREATED)
 async def create_patient_history(p_id: int, body: PatientHistCreate,current_user: dict = Depends(require_doctor)):
-    existing = await Patient_hist.find_one(Patient_hist.p_id == p_id)
+    existing = await Patient_hist.find_one({"p_id": p_id})
     if existing:
         raise HTTPException(status_code=409, detail="History already exists, use PUT to update")
 
@@ -530,7 +530,7 @@ async def create_patient_history(p_id: int, body: PatientHistCreate,current_user
 
 @router.put("/{p_id}/history", response_model=PatientHistResponse)
 async def update_patient_history(p_id: int, body: PatientHistCreate,current_user: dict = Depends(require_doctor)):
-    hist = await Patient_hist.find_one(Patient_hist.p_id == p_id)
+    hist = await Patient_hist.find_one({"p_id": p_id})
     if not hist:
         raise HTTPException(status_code=404, detail="Patient history not found")
 
