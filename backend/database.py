@@ -1,9 +1,10 @@
+import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 
-POSTGRES_URL = "postgresql+asyncpg://clinic_user:clinic_password@localhost:5432/clinic_db"
+POSTGRES_URL = os.getenv("POSTGRES_URL", "postgresql+asyncpg://postgres.lnsnlboggxrykokgjdrh:jhzp2ULgdHGe9jVY@aws-1-ap-south-1.pooler.supabase.com:5432/postgres")
 
 engine = create_async_engine(POSTGRES_URL, echo=True)
 
@@ -20,8 +21,8 @@ async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
 
-MONGO_URL = "mongodb://admin:adminpassword@localhost:27017"
-MONGO_DB_NAME = "clinic_db_mongo"
+MONGO_URL = os.getenv("MONGO_URL", "mongodb+srv://punalmonsalmon_db_user:caoXqFM6AHP5YJ1N@medicalmanagementcluste.pgrqqnv.mongodb.net/?appName=medicalManagementCluster0")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "clinic_db_mongo")
 
 mongo_client: AsyncIOMotorClient = None
 

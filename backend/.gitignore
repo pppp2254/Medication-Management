@@ -1,4 +1,18 @@
 venv
 .env
+# Environment variables
+.env
 
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+dist/
+
+# Uploads
+backend/uploads/
 uploads/
