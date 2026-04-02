@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import PatientHistoryForm from '../components/Patient/PatientHistForm';
 
-const PATIENT_API = 'http://localhost:8000/api/v1/patients';
-const INVENTORY_API = 'http://localhost:8000/api/v1/inventory';
-const BASE_URL = 'http://localhost:8000';
+const PATIENT_API = 'https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/patients';
+const INVENTORY_API = 'https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/inventory';
+const BASE_URL = 'https://clinic-backend-515936152744.asia-southeast1.run.app';
 
 export default function PatientDetailPage() {
   const { id } = useParams();

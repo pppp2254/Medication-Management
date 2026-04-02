@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const API = "http://localhost:8000/api/v1/inventory";
+const API = "https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/inventory";
 
 const RANGES = [
   { label: "7 Days", value: "7d" },

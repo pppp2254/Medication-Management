@@ -23,7 +23,7 @@ export default function PatientHistoryForm({ patient, onSuccess, onCancel }) {
     const token = localStorage.getItem('token');
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/patients/${patient.p_id}/history`, {
+      const response = await fetch(`https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/patients/${patient.p_id}/history`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

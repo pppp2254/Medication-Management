@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 
-const API = "http://localhost:8000/api/v1/auth/";
+const API = "https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/auth/";
 
 export default function Register() {
     const [form, setForm] = useState({ username: "", password: "", name: "", role: ""});

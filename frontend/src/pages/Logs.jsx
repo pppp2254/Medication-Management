@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const API = "http://localhost:8000/api/v1/staff";
+const API = "https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/staff";
 
 export default function ViewLogs() {
   const [logs, setLogs] = useState([]);

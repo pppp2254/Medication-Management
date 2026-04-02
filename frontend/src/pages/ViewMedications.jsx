@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const API = "http://localhost:8000/api/v1/inventory";
+const API = "https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/inventory";
 
 const today = new Date();
 const isExpired = (exp) => new Date(exp) < today;

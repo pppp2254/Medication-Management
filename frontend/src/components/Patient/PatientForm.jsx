@@ -23,7 +23,7 @@ export default function PatientForm({ onAddSuccess }) {
       // 1. ดึง Token มาจาก localStorage (ใช้ชื่อ 'token' ให้ตรงกับไฟล์ Login.jsx ของคุณ)
       const token = localStorage.getItem('token'); 
 
-      const response = await fetch('http://localhost:8000/api/v1/patients/', {
+      const response = await fetch('https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/patients/', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const API = "http://localhost:8000/api/v1/auth/";
+const API = "https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/auth/";
 
 export default function AdminPermissionPage() {
 const [staff, setStaff] = useState([]);

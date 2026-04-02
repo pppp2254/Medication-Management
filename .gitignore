@@ -6,4 +6,4 @@ backend/.venv/
 .venv/
 .env
 
-uploads/
+uploads/backend/database_pg.py

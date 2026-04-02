@@ -15,7 +15,7 @@ export default function PatientPage() {
   const fetchPatients = async () => {
     try {
       const token = localStorage.getItem('token'); 
-      const response = await fetch('http://localhost:8000/api/v1/patients/', {
+      const response = await fetch('https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/patients/', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

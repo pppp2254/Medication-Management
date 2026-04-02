@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
-const API = "http://localhost:8000/api/v1/inventory";
+const API = "https://clinic-backend-515936152744.asia-southeast1.run.app/api/v1/inventory";
 
 const StatCard = ({ label, value, sub, color, icon }) => (
   <div style={{ ...styles.statCard, borderTop: `4px solid ${color}` }}>
